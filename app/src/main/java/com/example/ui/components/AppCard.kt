@@ -2,14 +2,10 @@ package com.example.ui.components
 
 import android.view.KeyEvent
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -35,9 +31,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.ContentScale
@@ -53,7 +52,6 @@ import com.example.data.datastore.CardColorPreference
 import com.example.data.model.AppItem
 import com.example.data.repository.AppIconCache
 import com.example.ui.theme.LumiaCardDefault
-import com.example.ui.theme.LumiaFocusBorder
 import com.example.ui.theme.LumiaTextPrimary
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -63,8 +61,8 @@ import kotlinx.coroutines.launch
 fun AppCard(
     app: AppItem,
     cardColorPreference: CardColorPreference,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit,
+    onCardClick: (AppItem) -> Unit,
+    onCardLongClick: (AppItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -72,28 +70,15 @@ fun AppCard(
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
 
-    // Smooth, organic spring animation for scale (cushioned TV feel)
-    val scale by animateFloatAsState(
-        targetValue = if (isFocused) 1.07f else 1.0f,
-        animationSpec = spring(
-            dampingRatio = 0.85f,
-            stiffness = 320f
-        ),
-        label = "card_scale"
-    )
-
-    // Soft cross-fade for focus border and luminance lift
-    val focusAlpha by animateFloatAsState(
+    // Soft, organic TV focus transition (180ms ease-out)
+    // Runs in graphicsLayer & draw phase so the card NEVER recomposes during focus animation
+    val focusProgress by animateFloatAsState(
         targetValue = if (isFocused) 1.0f else 0.0f,
-        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
-        label = "focus_alpha"
-    )
-
-    // Smooth elevation transition
-    val elevation by animateDpAsState(
-        targetValue = if (isFocused) 12.dp else 0.dp,
-        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
-        label = "card_elevation"
+        animationSpec = tween(
+            durationMillis = 180,
+            easing = FastOutSlowInEasing
+        ),
+        label = "card_focus_progress"
     )
 
     val shape = RoundedCornerShape(12.dp)
@@ -101,15 +86,15 @@ fun AppCard(
     var longPressJob by remember { mutableStateOf<Job?>(null) }
     var longPressTriggered by remember { mutableStateOf(false) }
 
-    // Fast in-memory cached bitmaps
+    // Instant cached ImageBitmaps (O(1) memory lookup)
     val bannerBitmap = remember(app.packageName, app.hasBanner) {
         if (app.hasBanner) {
-            AppIconCache.getBannerBitmap(app.packageName, app.activityName, pm)
+            AppIconCache.getBanner(app.packageName, app.activityName, pm)
         } else null
     }
 
     val iconBitmap = remember(app.packageName, app.lastUpdateTime) {
-        AppIconCache.getIconBitmap(app.packageName, app.activityName, pm)
+        AppIconCache.getIcon(app.packageName, app.activityName, pm)
     }
 
     val cardBgColor = remember(app.dynamicColors, cardColorPreference) {
@@ -133,16 +118,36 @@ fun AppCard(
             .testTag("app_card_${app.packageName}")
             .zIndex(if (isFocused) 10f else 1f)
             .graphicsLayer {
+                val scale = 1.0f + (0.07f * focusProgress)
                 scaleX = scale
                 scaleY = scale
+                // GPU RenderNode elevation shadow only when focused
+                shadowElevation = (10.dp * focusProgress).toPx()
+                this.shape = shape
+                clip = false
             }
-            .shadow(elevation = elevation, shape = shape, clip = false)
-            .border(
-                BorderStroke(3.dp, LumiaFocusBorder.copy(alpha = focusAlpha)),
-                shape
-            )
             .clip(shape)
             .background(cardBgColor)
+            .drawWithContent {
+                drawContent()
+                // Focus border: drawn purely in draw phase without triggering recomposition
+                if (focusProgress > 0.005f) {
+                    val strokeWidth = 3.dp.toPx()
+                    val halfStroke = strokeWidth / 2f
+                    drawRoundRect(
+                        color = Color.White.copy(alpha = focusProgress),
+                        topLeft = Offset(halfStroke, halfStroke),
+                        size = Size(size.width - strokeWidth, size.height - strokeWidth),
+                        cornerRadius = CornerRadius(12.dp.toPx(), 12.dp.toPx()),
+                        style = Stroke(width = strokeWidth)
+                    )
+                    // Soft white illumination sheen when focused
+                    drawRoundRect(
+                        color = Color.White.copy(alpha = 0.06f * focusProgress),
+                        cornerRadius = CornerRadius(12.dp.toPx(), 12.dp.toPx())
+                    )
+                }
+            }
             .focusable(interactionSource = interactionSource)
             .onKeyEvent { keyEvent ->
                 val native = keyEvent.nativeKeyEvent
@@ -152,7 +157,7 @@ fun AppCard(
 
                 if (isMenu) {
                     if (native.action == KeyEvent.ACTION_UP) {
-                        onLongClick()
+                        onCardLongClick(app)
                     }
                     return@onKeyEvent true
                 }
@@ -165,14 +170,14 @@ fun AppCard(
                             longPressJob = coroutineScope.launch {
                                 delay(500)
                                 longPressTriggered = true
-                                onLongClick()
+                                onCardLongClick(app)
                             }
                         }
                         return@onKeyEvent true
                     } else if (native.action == KeyEvent.ACTION_UP) {
                         longPressJob?.cancel()
                         if (!longPressTriggered) {
-                            onClick()
+                            onCardClick(app)
                         }
                         longPressTriggered = false
                         return@onKeyEvent true
@@ -183,13 +188,13 @@ fun AppCard(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClick = onClick
+                onClick = { onCardClick(app) }
             )
             .aspectRatio(16f / 9f)
     ) {
         if (bannerBitmap != null) {
             Image(
-                bitmap = bannerBitmap.asImageBitmap(),
+                bitmap = bannerBitmap,
                 contentDescription = app.label,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
@@ -204,7 +209,7 @@ fun AppCard(
             ) {
                 if (iconBitmap != null) {
                     Image(
-                bitmap = iconBitmap.asImageBitmap(),
+                        bitmap = iconBitmap,
                         contentDescription = null,
                         modifier = Modifier.size(38.dp)
                     )
@@ -218,7 +223,7 @@ fun AppCard(
                     text = app.label,
                     color = textColor,
                     fontSize = 14.sp,
-                    fontWeight = if (isFocused) FontWeight.Medium else FontWeight.Normal,
+                    fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center,
@@ -226,14 +231,6 @@ fun AppCard(
                 )
             }
         }
-
-        // Soft white illumination lift when focused
-        if (focusAlpha > 0.01f) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.White.copy(alpha = 0.06f * focusAlpha))
-            )
-        }
     }
 }
+

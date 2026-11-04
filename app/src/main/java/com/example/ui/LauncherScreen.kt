@@ -35,11 +35,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.R
 import com.example.data.datastore.BackgroundPreference
+import com.example.data.model.AppItem
+import java.io.File
 import com.example.ui.components.AppCard
 import com.example.ui.components.ContextMenuOverlay
 import com.example.ui.components.CustomWallpaperPicker
@@ -124,49 +129,12 @@ fun LauncherScreen(
     ) {
         val screenHeight = maxHeight
 
-        // 1. Wallpaper background layer
-        Box(modifier = Modifier.fillMaxSize()) {
-            val wallpaperModel = if (uiState.settings.backgroundMode == BackgroundPreference.CUSTOM &&
-                uiState.customWallpaperFile != null
-            ) {
-                uiState.customWallpaperFile
-            } else {
-                R.drawable.default_wallpaper
-            }
-
-            AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(wallpaperModel)
-                    .crossfade(false)
-                    .build(),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-
-            // Dynamic Scrim overlay:
-            // Calculate alpha inside graphicsLayer to completely prevent recomposition during scroll!
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        val firstIndex = gridState.firstVisibleItemIndex
-                        val offset = gridState.firstVisibleItemScrollOffset
-                        alpha = if (firstIndex > 0) {
-                            0.55f
-                        } else {
-                            val progress = (offset / 500f).coerceIn(0f, 1f)
-                            0.25f + (0.30f * progress)
-                        }
-                    }
-                    .background(Color.Black)
-            )
-
-            // Top gradient behind the status bar (120dp high)
-            TopGradientOverlay(
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
-        }
+        // 1. Wallpaper background layer (isolated to eliminate scroll recomposition)
+        WallpaperBackground(
+            backgroundMode = uiState.settings.backgroundMode,
+            customWallpaperFile = uiState.customWallpaperFile,
+            gridState = gridState
+        )
 
         // 2. Fixed Status Bar at the top (zIndex 20f, height 48dp, top margin 16dp)
         StatusBar(
@@ -180,6 +148,17 @@ fun LauncherScreen(
                 .align(Alignment.TopCenter)
                 .zIndex(20f)
         )
+
+        // Stable callback instances remembered at screen level
+        val onAppClick: (AppItem) -> Unit = remember(viewModel, context) {
+            { app -> viewModel.onCardClick(context, app) }
+        }
+        val onGridAppLongClick: (AppItem) -> Unit = remember(viewModel) {
+            { app -> viewModel.onCardLongClick(app, isFavorite = false) }
+        }
+        val onFavoriteAppLongClick: (AppItem) -> Unit = remember(viewModel) {
+            { app -> viewModel.onCardLongClick(app, isFavorite = true) }
+        }
 
         // 3. Scrollable Grid: clipped below the status bar (at 64dp from top)
         Box(
@@ -218,8 +197,8 @@ fun LauncherScreen(
                         FavoritesPanel(
                             favorites = uiState.favoriteApps,
                             cardColorPreference = uiState.settings.cardColor,
-                            onAppClick = { app -> viewModel.onCardClick(context, app) },
-                            onAppLongClick = { app -> viewModel.onCardLongClick(app, isFavorite = true) },
+                            onAppClick = onAppClick,
+                            onAppLongClick = onFavoriteAppLongClick,
                             firstItemFocusRequester = firstFavoriteFocusRequester,
                             modifier = Modifier.padding(bottom = 16.dp)
                         )
@@ -235,8 +214,8 @@ fun LauncherScreen(
                     AppCard(
                         app = app,
                         cardColorPreference = uiState.settings.cardColor,
-                        onClick = { viewModel.onCardClick(context, app) },
-                        onLongClick = { viewModel.onCardLongClick(app, isFavorite = false) },
+                        onCardClick = onAppClick,
+                        onCardLongClick = onGridAppLongClick,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -294,5 +273,60 @@ fun LauncherScreen(
                 onDismiss = { viewModel.closeCustomWallpaperPicker() }
             )
         }
+    }
+}
+
+@Composable
+private fun WallpaperBackground(
+    backgroundMode: BackgroundPreference,
+    customWallpaperFile: File?,
+    gridState: LazyGridState,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    Box(modifier = modifier.fillMaxSize()) {
+        if (backgroundMode == BackgroundPreference.CUSTOM && customWallpaperFile != null) {
+            AsyncImage(
+                model = remember(customWallpaperFile, context) {
+                    ImageRequest.Builder(context)
+                        .data(customWallpaperFile)
+                        .crossfade(false)
+                        .build()
+                },
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Image(
+                painter = painterResource(id = R.drawable.default_wallpaper),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        // Dynamic Scrim overlay:
+        // Evaluated inside graphicsLayer draw phase to eliminate scroll recomposition
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    val firstIndex = gridState.firstVisibleItemIndex
+                    val offset = gridState.firstVisibleItemScrollOffset
+                    alpha = if (firstIndex > 0) {
+                        0.55f
+                    } else {
+                        val progress = (offset / 500f).coerceIn(0f, 1f)
+                        0.25f + (0.30f * progress)
+                    }
+                }
+                .background(Color.Black)
+        )
+
+        // Top gradient behind the status bar (120dp high)
+        TopGradientOverlay(
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
     }
 }

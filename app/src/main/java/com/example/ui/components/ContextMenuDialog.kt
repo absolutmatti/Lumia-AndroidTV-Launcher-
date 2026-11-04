@@ -85,7 +85,7 @@ fun ContextMenuOverlay(
     val openTimeMs = remember { System.currentTimeMillis() }
 
     val iconBitmap = remember(app.packageName, app.lastUpdateTime) {
-        AppIconCache.getIconBitmap(app.packageName, app.activityName, pm)
+        AppIconCache.getIcon(app.packageName, app.activityName, pm)
     }
 
     // Explicitly focus the first context menu action once layout is attached
@@ -143,7 +143,7 @@ fun ContextMenuOverlay(
             ) {
                 if (iconBitmap != null) {
                     Image(
-                        bitmap = iconBitmap.asImageBitmap(),
+                        bitmap = iconBitmap,
                         contentDescription = null,
                         modifier = Modifier.size(40.dp)
                     )

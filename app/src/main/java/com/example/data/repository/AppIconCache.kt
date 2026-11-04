@@ -6,15 +6,20 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
-import android.util.LruCache
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import java.util.concurrent.ConcurrentHashMap
 
 object AppIconCache {
-    private val iconCache = LruCache<String, Bitmap>(200)
-    private val bannerCache = LruCache<String, Bitmap?>(200)
+    private val iconCache = ConcurrentHashMap<String, ImageBitmap>()
+    private val bannerCache = ConcurrentHashMap<String, ImageBitmap>()
+    private val noBannerKeys = ConcurrentHashMap.newKeySet<String>()
+    private val noIconKeys = ConcurrentHashMap.newKeySet<String>()
 
-    fun getIconBitmap(packageName: String, activityName: String, pm: PackageManager): Bitmap? {
+    fun getIcon(packageName: String, activityName: String, pm: PackageManager): ImageBitmap? {
         val key = "$packageName/$activityName"
-        iconCache.get(key)?.let { return it }
+        iconCache[key]?.let { return it }
+        if (noIconKeys.contains(key)) return null
 
         val drawable = try {
             val component = ComponentName(packageName, activityName)
@@ -25,19 +30,28 @@ object AppIconCache {
             } catch (_: Exception) {
                 null
             }
-        } ?: return null
+        }
+
+        if (drawable == null) {
+            noIconKeys.add(key)
+            return null
+        }
 
         val bitmap = drawableToBitmap(drawable, 96, 96)
-        if (bitmap != null) {
-            iconCache.put(key, bitmap)
+        return if (bitmap != null) {
+            val imageBitmap = bitmap.asImageBitmap()
+            iconCache[key] = imageBitmap
+            imageBitmap
+        } else {
+            noIconKeys.add(key)
+            null
         }
-        return bitmap
     }
 
-    fun getBannerBitmap(packageName: String, activityName: String, pm: PackageManager): Bitmap? {
+    fun getBanner(packageName: String, activityName: String, pm: PackageManager): ImageBitmap? {
         val key = "$packageName/$activityName"
-        val cached = bannerCache.get(key)
-        if (cached != null) return cached
+        bannerCache[key]?.let { return it }
+        if (noBannerKeys.contains(key)) return null
 
         val drawable = try {
             val component = ComponentName(packageName, activityName)
@@ -47,15 +61,19 @@ object AppIconCache {
         }
 
         if (drawable == null) {
-            // Can't cache null in LruCache directly, but we can store a sentinel or return null
+            noBannerKeys.add(key)
             return null
         }
 
         val bitmap = drawableToBitmap(drawable, 320, 180)
-        if (bitmap != null) {
-            bannerCache.put(key, bitmap)
+        return if (bitmap != null) {
+            val imageBitmap = bitmap.asImageBitmap()
+            bannerCache[key] = imageBitmap
+            imageBitmap
+        } else {
+            noBannerKeys.add(key)
+            null
         }
-        return bitmap
     }
 
     private fun drawableToBitmap(drawable: Drawable, width: Int, height: Int): Bitmap? {
@@ -75,7 +93,10 @@ object AppIconCache {
     }
 
     fun clear() {
-        iconCache.evictAll()
-        bannerCache.evictAll()
+        iconCache.clear()
+        bannerCache.clear()
+        noBannerKeys.clear()
+        noIconKeys.clear()
     }
 }
+

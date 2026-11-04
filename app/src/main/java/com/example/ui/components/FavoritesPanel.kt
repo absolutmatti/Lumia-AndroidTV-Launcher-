@@ -85,8 +85,8 @@ fun FavoritesPanel(
                             AppCard(
                                 app = app,
                                 cardColorPreference = cardColorPreference,
-                                onClick = { onAppClick(app) },
-                                onLongClick = { onAppLongClick(app) },
+                                onCardClick = onAppClick,
+                                onCardLongClick = onAppLongClick,
                                 modifier = cardModifier
                             )
                         } else {

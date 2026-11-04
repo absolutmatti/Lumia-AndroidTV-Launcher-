@@ -1,7 +1,10 @@
 package com.example.ui.components
 
 import android.view.KeyEvent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -40,6 +43,7 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -68,10 +72,28 @@ fun AppCard(
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
 
+    // Smooth, organic spring animation for scale (cushioned TV feel)
     val scale by animateFloatAsState(
-        targetValue = if (isFocused) 1.08f else 1.0f,
-        animationSpec = tween(durationMillis = 150),
+        targetValue = if (isFocused) 1.07f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = 0.85f,
+            stiffness = 320f
+        ),
         label = "card_scale"
+    )
+
+    // Soft cross-fade for focus border and luminance lift
+    val focusAlpha by animateFloatAsState(
+        targetValue = if (isFocused) 1.0f else 0.0f,
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+        label = "focus_alpha"
+    )
+
+    // Smooth elevation transition
+    val elevation by animateDpAsState(
+        targetValue = if (isFocused) 12.dp else 0.dp,
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+        label = "card_elevation"
     )
 
     val shape = RoundedCornerShape(12.dp)
@@ -114,12 +136,10 @@ fun AppCard(
                 scaleX = scale
                 scaleY = scale
             }
-            .then(
-                if (isFocused) {
-                    Modifier
-                        .shadow(elevation = 10.dp, shape = shape, clip = false)
-                        .border(BorderStroke(3.dp, LumiaFocusBorder), shape)
-                } else Modifier
+            .shadow(elevation = elevation, shape = shape, clip = false)
+            .border(
+                BorderStroke(3.dp, LumiaFocusBorder.copy(alpha = focusAlpha)),
+                shape
             )
             .clip(shape)
             .background(cardBgColor)
@@ -184,7 +204,7 @@ fun AppCard(
             ) {
                 if (iconBitmap != null) {
                     Image(
-                        bitmap = iconBitmap.asImageBitmap(),
+                bitmap = iconBitmap.asImageBitmap(),
                         contentDescription = null,
                         modifier = Modifier.size(38.dp)
                     )
@@ -198,12 +218,22 @@ fun AppCard(
                     text = app.label,
                     color = textColor,
                     fontSize = 14.sp,
+                    fontWeight = if (isFocused) FontWeight.Medium else FontWeight.Normal,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
+        }
+
+        // Soft white illumination lift when focused
+        if (focusAlpha > 0.01f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.White.copy(alpha = 0.06f * focusAlpha))
+            )
         }
     }
 }

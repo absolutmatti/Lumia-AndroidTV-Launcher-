@@ -84,7 +84,7 @@ fun LauncherScreen(
     val returnToStartView: () -> Unit = remember(gridState, uiState.favoriteApps) {
         {
             coroutineScope.launch {
-                gridState.scrollToItem(0)
+                gridState.animateScrollToItem(0)
                 try {
                     if (uiState.favoriteApps.isNotEmpty()) {
                         firstFavoriteFocusRequester.requestFocus()
@@ -175,6 +175,7 @@ fun LauncherScreen(
             networkStatus = uiState.networkStatus,
             onSettingsClick = { viewModel.openSettings() },
             onWifiClick = { viewModel.openWifiSettings(context) },
+            settingsFocusRequester = gearFocusRequester,
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .zIndex(20f)
@@ -219,6 +220,7 @@ fun LauncherScreen(
                             cardColorPreference = uiState.settings.cardColor,
                             onAppClick = { app -> viewModel.onCardClick(context, app) },
                             onAppLongClick = { app -> viewModel.onCardLongClick(app, isFavorite = true) },
+                            firstItemFocusRequester = firstFavoriteFocusRequester,
                             modifier = Modifier.padding(bottom = 16.dp)
                         )
                     }

@@ -1,5 +1,8 @@
 package com.example.ui.components
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -170,18 +173,27 @@ private fun StatusBarIconButton(
     val isFocused by interactionSource.collectIsFocusedAsState()
     val shape = RoundedCornerShape(8.dp)
 
+    val focusAlpha by animateFloatAsState(
+        targetValue = if (isFocused) 1.0f else 0.0f,
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+        label = "status_icon_focus"
+    )
+
     Box(
         modifier = modifier
             .testTag(testTag)
             .size(44.dp)
             .clip(shape)
             .background(
-                if (isFocused) Color.White.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.25f)
+                if (focusAlpha > 0.01f) {
+                    Color.White.copy(alpha = 0.20f * focusAlpha)
+                } else {
+                    Color.Black.copy(alpha = 0.25f)
+                }
             )
-            .then(
-                if (isFocused) {
-                    Modifier.border(BorderStroke(2.dp, LumiaFocusBorder), shape)
-                } else Modifier
+            .border(
+                BorderStroke(2.dp, LumiaFocusBorder.copy(alpha = focusAlpha)),
+                shape
             )
             .tvClickable(
                 interactionSource = interactionSource,

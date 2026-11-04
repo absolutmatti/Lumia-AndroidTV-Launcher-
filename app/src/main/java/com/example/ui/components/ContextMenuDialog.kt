@@ -2,6 +2,10 @@ package com.example.ui.components
 
 import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -32,9 +36,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,6 +44,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalContext
@@ -79,18 +82,18 @@ fun ContextMenuOverlay(
     val context = LocalContext.current
     val pm = context.packageManager
     val firstItemFocusRequester = remember { FocusRequester() }
+    val openTimeMs = remember { System.currentTimeMillis() }
 
     val iconBitmap = remember(app.packageName, app.lastUpdateTime) {
         AppIconCache.getIconBitmap(app.packageName, app.activityName, pm)
     }
 
-    var canAcceptInput by remember { mutableStateOf(false) }
-
+    // Explicitly focus the first context menu action once layout is attached
     LaunchedEffect(app.packageName) {
-        canAcceptInput = false
-        firstItemFocusRequester.requestFocus()
-        delay(350)
-        canAcceptInput = true
+        delay(60)
+        try {
+            firstItemFocusRequester.requestFocus()
+        } catch (_: Exception) {}
     }
 
     BackHandler(onBack = onDismiss)
@@ -129,7 +132,7 @@ fun ContextMenuOverlay(
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = {}
+                    onClick = {} // Consume click inside dialog body
                 )
                 .padding(24.dp)
         ) {
@@ -174,11 +177,15 @@ fun ContextMenuOverlay(
                 testTag = "menu_item_favorite",
                 title = favoriteLabel,
                 icon = if (isFavorite) Icons.Default.StarOutline else Icons.Default.Star,
-                enabled = !isFavoritesFull && canAcceptInput,
+                enabled = true, // Always focusable so D-Pad navigation never gets lost
                 focusRequester = firstItemFocusRequester,
                 onClick = {
-                    if (canAcceptInput) {
-                        if (isFavorite) onRemoveFavorite() else onAddFavorite()
+                    if (System.currentTimeMillis() - openTimeMs > 250L) {
+                        if (isFavorite) {
+                            onRemoveFavorite()
+                        } else if (!isFavoritesFull) {
+                            onAddFavorite()
+                        }
                     }
                 }
             )
@@ -188,9 +195,11 @@ fun ContextMenuOverlay(
                 testTag = "menu_item_app_info",
                 title = stringResource(R.string.menu_app_info),
                 icon = Icons.Default.Info,
-                enabled = canAcceptInput,
+                enabled = true,
                 onClick = {
-                    if (canAcceptInput) onAppInfo()
+                    if (System.currentTimeMillis() - openTimeMs > 250L) {
+                        onAppInfo()
+                    }
                 }
             )
 
@@ -200,9 +209,11 @@ fun ContextMenuOverlay(
                     testTag = "menu_item_uninstall",
                     title = stringResource(R.string.menu_uninstall),
                     icon = Icons.Default.Delete,
-                    enabled = canAcceptInput,
+                    enabled = true,
                     onClick = {
-                        if (canAcceptInput) onUninstall()
+                        if (System.currentTimeMillis() - openTimeMs > 250L) {
+                            onUninstall()
+                        }
                     }
                 )
             }
@@ -213,9 +224,11 @@ fun ContextMenuOverlay(
                 title = stringResource(R.string.menu_hide),
                 icon = Icons.Default.VisibilityOff,
                 isDestructive = true,
-                enabled = canAcceptInput,
+                enabled = true,
                 onClick = {
-                    if (canAcceptInput) onHide()
+                    if (System.currentTimeMillis() - openTimeMs > 250L) {
+                        onHide()
+                    }
                 }
             )
         }
@@ -237,10 +250,27 @@ private fun ContextMenuItem(
     val isFocused by interactionSource.collectIsFocusedAsState()
     val shape = RoundedCornerShape(10.dp)
 
+    // Butter-smooth scale spring
+    val scale by animateFloatAsState(
+        targetValue = if (isFocused) 1.03f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = 0.85f,
+            stiffness = 380f
+        ),
+        label = "menu_item_scale"
+    )
+
+    // Soft cross-fade on focus border & background
+    val focusAlpha by animateFloatAsState(
+        targetValue = if (isFocused) 1.0f else 0.0f,
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+        label = "menu_item_focus_alpha"
+    )
+
     val itemColor = when {
         !enabled -> LumiaTextSecondary.copy(alpha = 0.4f)
-        isDestructive -> LumiaDestructive
-        else -> LumiaTextPrimary
+        isDestructive -> if (isFocused) Color(0xFFFF5252) else LumiaDestructive
+        else -> if (isFocused) Color.White else LumiaTextPrimary
     }
 
     Row(
@@ -248,13 +278,15 @@ private fun ContextMenuItem(
             .testTag(testTag)
             .fillMaxWidth()
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
             .clip(shape)
-            .background(
-                if (isFocused) Color.White.copy(alpha = 0.20f) else Color.Transparent
-            )
-            .then(
-                if (isFocused) Modifier.border(BorderStroke(2.dp, LumiaFocusBorder), shape)
-                else Modifier
+            .background(Color.White.copy(alpha = 0.22f * focusAlpha))
+            .border(
+                BorderStroke(2.dp, LumiaFocusBorder.copy(alpha = focusAlpha)),
+                shape
             )
             .tvClickable(
                 enabled = enabled,
@@ -275,7 +307,7 @@ private fun ContextMenuItem(
             text = title,
             color = itemColor,
             fontSize = 16.sp,
-            fontWeight = if (isFocused) FontWeight.Medium else FontWeight.Normal,
+            fontWeight = if (isFocused) FontWeight.SemiBold else FontWeight.Normal,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )

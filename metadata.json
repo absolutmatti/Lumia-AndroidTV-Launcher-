@@ -1,0 +1,6 @@
+{
+  "name": "Lumia Launcher",
+  "description": "Ein ruhiger Android-TV-Launcher mit einer eleganten Startseite, Favoriten-Panel und 16:9-Kartenwand.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

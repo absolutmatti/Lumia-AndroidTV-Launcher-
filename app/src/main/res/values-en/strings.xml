@@ -1,0 +1,75 @@
+<resources>
+    <string name="app_name">Lumia Launcher</string>
+    <string name="settings_title">Settings</string>
+    <string name="wifi_settings">Wi-Fi Settings</string>
+    <string name="category_general">General</string>
+    <string name="category_appearance">Appearance</string>
+    <string name="category_apps">Apps</string>
+    <string name="category_system">System</string>
+    <string name="category_about">About</string>
+
+    <string name="pref_time_format">Time Format</string>
+    <string name="pref_time_format_desc">Clock display in status bar</string>
+    <string name="time_format_system">System</string>
+    <string name="time_format_12h">12-hour</string>
+    <string name="time_format_24h">24-hour</string>
+
+    <string name="pref_show_date">Show Date</string>
+    <string name="pref_show_date_desc">Display weekday and date in status bar</string>
+
+    <string name="pref_home_focus">Home Focus (HOME Button)</string>
+    <string name="pref_home_focus_desc">Behavior when pressing HOME button</string>
+    <string name="home_focus_favorites">Favorites (jump to start)</string>
+    <string name="home_focus_last_position">Keep last position</string>
+
+    <string name="pref_wallpaper">Wallpaper</string>
+    <string name="pref_wallpaper_desc">Set custom wallpaper or restore default</string>
+    <string name="action_choose_image">Select Image…</string>
+    <string name="action_reset_wallpaper">Reset to Default Wallpaper</string>
+
+    <string name="pref_card_colors">Card Colors</string>
+    <string name="pref_card_colors_desc">Color scheme for apps without custom banner</string>
+    <string name="card_color_dynamic">Dynamic (from app logo)</string>
+    <string name="card_color_uniform">Uniform dark</string>
+
+    <string name="pref_hidden_apps">Manage Hidden Apps</string>
+    <string name="pref_hidden_apps_desc">Restore hidden apps to the grid</string>
+    <string name="no_hidden_apps">No hidden apps.</string>
+    <string name="unhide_app">Unhide</string>
+
+    <string name="pref_reset_favorites">Reset Favorites</string>
+    <string name="pref_reset_favorites_desc">Clear all 6 slots in the favorites panel</string>
+    <string name="reset_favorites_confirm">Do you really want to reset all favorites?</string>
+    <string name="action_reset">Reset</string>
+    <string name="action_cancel">Cancel</string>
+
+    <string name="sys_wifi">Wi-Fi</string>
+    <string name="sys_display">Display</string>
+    <string name="sys_sound">Sound</string>
+    <string name="sys_all_settings">All Android Settings</string>
+    <string name="sys_home_launcher">Default Launcher</string>
+
+    <string name="about_desc">A calm Android TV launcher with a single home screen, favorites panel, and 16:9 card grid.</string>
+    <string name="about_version">Version 1.0 (Build 1)</string>
+    <string name="about_licenses">Open Source Licenses</string>
+    <string name="licenses_text">Lumia Launcher uses Jetpack Compose, Material 3, Room, Coil, and AndroidX Palette under the Apache-2.0 license.</string>
+
+    <string name="favorites_empty_hint">No favorites yet. Long-press OK on any app and select “Add to Favorites”.</string>
+    <string name="favorites_full_hint">Favorites full (6/6) – remove one first</string>
+    <string name="menu_add_favorite">Add to Favorites</string>
+    <string name="menu_remove_favorite">Remove from Favorites</string>
+    <string name="menu_app_info">App Info</string>
+    <string name="menu_uninstall">Uninstall</string>
+    <string name="menu_hide">Hide</string>
+    <string name="toast_hidden">Hidden. Unhide in Settings → Apps.</string>
+    <string name="toast_cannot_launch">Cannot launch app</string>
+    <string name="toast_setting_unavailable">Setting not available</string>
+    <string name="toast_wallpaper_saved">Wallpaper updated successfully</string>
+    <string name="toast_wallpaper_reset">Default wallpaper restored</string>
+    <string name="toast_no_images">No images found on device</string>
+    <string name="permission_required_images">Permission to read images is required</string>
+
+    <string name="net_wifi_connected">Wi-Fi connected</string>
+    <string name="net_ethernet_connected">Ethernet connected</string>
+    <string name="net_disconnected">No connection</string>
+</resources>

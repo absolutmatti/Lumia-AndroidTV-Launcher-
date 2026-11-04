@@ -1,0 +1,75 @@
+<resources>
+    <string name="app_name">Lumia Launcher</string>
+    <string name="settings_title">Einstellungen</string>
+    <string name="wifi_settings">WLAN-Einstellungen</string>
+    <string name="category_general">Allgemein</string>
+    <string name="category_appearance">Darstellung</string>
+    <string name="category_apps">Apps</string>
+    <string name="category_system">System</string>
+    <string name="category_about">Über</string>
+
+    <string name="pref_time_format">Zeitformat</string>
+    <string name="pref_time_format_desc">Uhrzeitanzeige in der Statusleiste</string>
+    <string name="time_format_system">System</string>
+    <string name="time_format_12h">12 Stunden</string>
+    <string name="time_format_24h">24 Stunden</string>
+
+    <string name="pref_show_date">Datum anzeigen</string>
+    <string name="pref_show_date_desc">Wochentag und Datum in der Statusleiste anzeigen</string>
+
+    <string name="pref_home_focus">Startfokus (HOME-Taste)</string>
+    <string name="pref_home_focus_desc">Verhalten beim Drücken der HOME-Taste</string>
+    <string name="home_focus_favorites">Favoriten (zum Anfang springen)</string>
+    <string name="home_focus_last_position">Letzte Position beibehalten</string>
+
+    <string name="pref_wallpaper">Hintergrundbild</string>
+    <string name="pref_wallpaper_desc">Eigenes Bild festlegen oder Standard wiederherstellen</string>
+    <string name="action_choose_image">Bild auswählen…</string>
+    <string name="action_reset_wallpaper">Auf Standardbild zurücksetzen</string>
+
+    <string name="pref_card_colors">Kartenfarben</string>
+    <string name="pref_card_colors_desc">Farbschema der App-Karten ohne eigenes Banner</string>
+    <string name="card_color_dynamic">Dynamisch (aus App-Logo)</string>
+    <string name="card_color_uniform">Einheitlich dunkel</string>
+
+    <string name="pref_hidden_apps">Ausgeblendete Apps verwalten</string>
+    <string name="pref_hidden_apps_desc">Ausgeblendete Apps wieder im Grid anzeigen</string>
+    <string name="no_hidden_apps">Keine ausgeblendeten Apps vorhanden.</string>
+    <string name="unhide_app">Wieder einblenden</string>
+
+    <string name="pref_reset_favorites">Favoriten zurücksetzen</string>
+    <string name="pref_reset_favorites_desc">Alle 6 Plätze im Favoriten-Panel leeren</string>
+    <string name="reset_favorites_confirm">Möchtest du wirklich alle Favoriten zurücksetzen?</string>
+    <string name="action_reset">Zurücksetzen</string>
+    <string name="action_cancel">Abbrechen</string>
+
+    <string name="sys_wifi">WLAN</string>
+    <string name="sys_display">Anzeige</string>
+    <string name="sys_sound">Ton</string>
+    <string name="sys_all_settings">Alle Android-Einstellungen</string>
+    <string name="sys_home_launcher">Standard-Launcher</string>
+
+    <string name="about_desc">Ein ruhiger Android-TV-Launcher mit nur einer Startseite, Favoriten-Panel und 16:9-Kartenwand.</string>
+    <string name="about_version">Version 1.0 (Build 1)</string>
+    <string name="about_licenses">Open-Source-Lizenzen</string>
+    <string name="licenses_text">Lumia Launcher nutzt Android Jetpack Compose, Material 3, Room, Coil und AndroidX Palette unter Apache-2.0 Lizenz.</string>
+
+    <string name="favorites_empty_hint">Noch keine Favoriten. Halte OK auf einer App gedrückt und wähle „Zu Favoriten hinzufügen“.</string>
+    <string name="favorites_full_hint">Favoriten voll (6/6) – zuerst einen entfernen</string>
+    <string name="menu_add_favorite">Zu Favoriten hinzufügen</string>
+    <string name="menu_remove_favorite">Aus Favoriten entfernen</string>
+    <string name="menu_app_info">App-Info</string>
+    <string name="menu_uninstall">Deinstallieren</string>
+    <string name="menu_hide">Ausblenden</string>
+    <string name="toast_hidden">Ausgeblendet. Wieder einblenden unter Einstellungen → Apps.</string>
+    <string name="toast_cannot_launch">App kann nicht gestartet werden</string>
+    <string name="toast_setting_unavailable">Einstellung nicht verfügbar</string>
+    <string name="toast_wallpaper_saved">Hintergrundbild erfolgreich aktualisiert</string>
+    <string name="toast_wallpaper_reset">Standard-Hintergrundbild wiederhergestellt</string>
+    <string name="toast_no_images">Keine Bilder auf dem Gerät gefunden</string>
+    <string name="permission_required_images">Berechtigung zum Lesen von Bildern erforderlich</string>
+
+    <string name="net_wifi_connected">WLAN verbunden</string>
+    <string name="net_ethernet_connected">LAN verbunden</string>
+    <string name="net_disconnected">Keine Verbindung</string>
+</resources>

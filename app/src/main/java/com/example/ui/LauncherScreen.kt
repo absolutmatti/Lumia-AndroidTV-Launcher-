@@ -27,6 +27,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -77,25 +78,41 @@ fun LauncherScreen(
         }
     }
 
-    // Handle navigation events (e.g. HOME key -> scroll to top)
+    val firstFavoriteFocusRequester = remember { FocusRequester() }
+    val gearFocusRequester = remember { FocusRequester() }
+
+    val returnToStartView: () -> Unit = remember(gridState, uiState.favoriteApps) {
+        {
+            coroutineScope.launch {
+                gridState.scrollToItem(0)
+                try {
+                    if (uiState.favoriteApps.isNotEmpty()) {
+                        firstFavoriteFocusRequester.requestFocus()
+                    } else {
+                        gearFocusRequester.requestFocus()
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
+    // Handle navigation events (e.g. HOME key -> scroll to top and focus first favorite)
     LaunchedEffect(Unit) {
         viewModel.navEvents.collectLatest { event ->
             when (event) {
                 NavigationEvent.ScrollToTopAndFocusFavorites -> {
-                    gridState.animateScrollToItem(0)
+                    returnToStartView()
                 }
             }
         }
     }
 
     // Global Back Handler:
-    // If dialogs/overlays open, dismiss them; if in grid, scroll to top; if in favorites, consume.
+    // If dialogs/overlays open, dismiss them; if in grid, scroll to top and focus first favorite!
     BackHandler {
         if (!viewModel.handleBack()) {
             if (gridState.firstVisibleItemIndex > 0 || gridState.firstVisibleItemScrollOffset > 0) {
-                coroutineScope.launch {
-                    gridState.animateScrollToItem(0)
-                }
+                returnToStartView()
             }
         }
     }

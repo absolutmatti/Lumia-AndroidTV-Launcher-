@@ -162,6 +162,12 @@ class AppRepository(
 
         val colors = PaletteExtractor.getColors(cacheKey, iconDrawable)
 
+        // Pre-rasterize and cache icon and banner on background thread
+        AppIconCache.getIconBitmap(pkg, activityInfo.name, packageManager)
+        if (hasBanner) {
+            AppIconCache.getBannerBitmap(pkg, activityInfo.name, packageManager)
+        }
+
         return AppItem(
             packageName = pkg,
             activityName = activityInfo.name,

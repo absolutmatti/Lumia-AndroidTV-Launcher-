@@ -15,13 +15,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
@@ -37,7 +36,8 @@ fun FavoritesPanel(
     cardColorPreference: CardColorPreference,
     onAppClick: (AppItem) -> Unit,
     onAppLongClick: (AppItem) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    firstItemFocusRequester: FocusRequester? = null
 ) {
     val panelShape = RoundedCornerShape(28.dp)
 
@@ -77,12 +77,17 @@ fun FavoritesPanel(
                         contentAlignment = Alignment.Center
                     ) {
                         if (app != null) {
+                            val cardModifier = if (i == 0 && firstItemFocusRequester != null) {
+                                Modifier.fillMaxWidth().focusRequester(firstItemFocusRequester)
+                            } else {
+                                Modifier.fillMaxWidth()
+                            }
                             AppCard(
                                 app = app,
                                 cardColorPreference = cardColorPreference,
                                 onClick = { onAppClick(app) },
                                 onLongClick = { onAppLongClick(app) },
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = cardModifier
                             )
                         } else {
                             EmptySlotPlaceholder()

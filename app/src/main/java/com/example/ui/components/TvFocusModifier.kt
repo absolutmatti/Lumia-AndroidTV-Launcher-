@@ -15,8 +15,9 @@ import androidx.compose.ui.input.key.onKeyEvent
 /**
  * Ensures reliable D-Pad click interaction on Android TV devices.
  * CRITICAL: A click is ONLY recognized if ACTION_DOWN was pressed while
- * this specific composable was focused, preventing phantom clicks
- * when an overlay appears while the user is still holding the button.
+ * this specific composable was focused, with repeatCount == 0 (fresh press),
+ * completely preventing phantom clicks when an overlay appears while the user
+ * is still holding down the button.
  */
 fun Modifier.tvClickable(
     enabled: Boolean = true,
@@ -35,7 +36,10 @@ fun Modifier.tvClickable(
 
             if (isCenter) {
                 if (native.action == KeyEvent.ACTION_DOWN) {
-                    isPressedDownOnMe = true
+                    // Only a fresh press down (repeatCount == 0) counts as pressing this item
+                    if (native.repeatCount == 0) {
+                        isPressedDownOnMe = true
+                    }
                     return@onKeyEvent true
                 } else if (native.action == KeyEvent.ACTION_UP) {
                     val wasDown = isPressedDownOnMe

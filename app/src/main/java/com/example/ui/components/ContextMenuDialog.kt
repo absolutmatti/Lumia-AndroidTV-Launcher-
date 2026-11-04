@@ -32,7 +32,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -59,6 +61,7 @@ import com.example.ui.theme.LumiaOverlayBg
 import com.example.ui.theme.LumiaOverlayScrim
 import com.example.ui.theme.LumiaTextPrimary
 import com.example.ui.theme.LumiaTextSecondary
+import kotlinx.coroutines.delay
 
 @Composable
 fun ContextMenuOverlay(
@@ -81,8 +84,13 @@ fun ContextMenuOverlay(
         AppIconCache.getIconBitmap(app.packageName, app.activityName, pm)
     }
 
+    var canAcceptInput by remember { mutableStateOf(false) }
+
     LaunchedEffect(app.packageName) {
+        canAcceptInput = false
         firstItemFocusRequester.requestFocus()
+        delay(350)
+        canAcceptInput = true
     }
 
     BackHandler(onBack = onDismiss)
@@ -121,7 +129,7 @@ fun ContextMenuOverlay(
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = {} // consume click inside card
+                    onClick = {}
                 )
                 .padding(24.dp)
         ) {
@@ -166,10 +174,12 @@ fun ContextMenuOverlay(
                 testTag = "menu_item_favorite",
                 title = favoriteLabel,
                 icon = if (isFavorite) Icons.Default.StarOutline else Icons.Default.Star,
-                enabled = !isFavoritesFull,
+                enabled = !isFavoritesFull && canAcceptInput,
                 focusRequester = firstItemFocusRequester,
                 onClick = {
-                    if (isFavorite) onRemoveFavorite() else onAddFavorite()
+                    if (canAcceptInput) {
+                        if (isFavorite) onRemoveFavorite() else onAddFavorite()
+                    }
                 }
             )
 
@@ -178,7 +188,10 @@ fun ContextMenuOverlay(
                 testTag = "menu_item_app_info",
                 title = stringResource(R.string.menu_app_info),
                 icon = Icons.Default.Info,
-                onClick = onAppInfo
+                enabled = canAcceptInput,
+                onClick = {
+                    if (canAcceptInput) onAppInfo()
+                }
             )
 
             // 3. Uninstall (only for non-system apps)
@@ -187,7 +200,10 @@ fun ContextMenuOverlay(
                     testTag = "menu_item_uninstall",
                     title = stringResource(R.string.menu_uninstall),
                     icon = Icons.Default.Delete,
-                    onClick = onUninstall
+                    enabled = canAcceptInput,
+                    onClick = {
+                        if (canAcceptInput) onUninstall()
+                    }
                 )
             }
 
@@ -197,7 +213,10 @@ fun ContextMenuOverlay(
                 title = stringResource(R.string.menu_hide),
                 icon = Icons.Default.VisibilityOff,
                 isDestructive = true,
-                onClick = onHide
+                enabled = canAcceptInput,
+                onClick = {
+                    if (canAcceptInput) onHide()
+                }
             )
         }
     }

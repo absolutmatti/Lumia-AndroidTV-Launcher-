@@ -6,13 +6,12 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -29,7 +28,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PhoneAndroid
@@ -40,12 +38,9 @@ import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -60,18 +55,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.zIndex
 import com.example.R
 import com.example.data.datastore.CardColorPreference
 import com.example.data.datastore.HomeFocusPreference
@@ -110,129 +105,139 @@ fun SettingsOverlay(
     onConfirmResetFavorites: () -> Unit,
     onDismissResetFavorites: () -> Unit,
     onSystemAction: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var selectedCategory by remember { mutableStateOf(SettingsCategory.GENERAL) }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        BackHandler(onBack = onDismiss)
+    val firstCategoryFocusRequester = remember { FocusRequester() }
+    val rightPaneFirstFocusRequester = remember { FocusRequester() }
 
-        Box(
+    LaunchedEffect(Unit) {
+        firstCategoryFocusRequester.requestFocus()
+    }
+
+    BackHandler(onBack = onDismiss)
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .zIndex(100f)
+            .background(LumiaOverlayScrim)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onDismiss
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        val panelShape = RoundedCornerShape(24.dp)
+
+        Row(
             modifier = Modifier
-                .fillMaxSize()
-                .background(LumiaOverlayScrim)
+                .testTag("settings_overlay_dialog")
+                .width(820.dp)
+                .height(480.dp)
+                .clip(panelShape)
+                .background(LumiaOverlayBg)
+                .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)), panelShape)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = onDismiss
-                ),
-            contentAlignment = Alignment.Center
+                    onClick = {} // consume click inside card
+                )
         ) {
-            val panelShape = RoundedCornerShape(24.dp)
-
-            Row(
+            // Left Column: Categories
+            Column(
                 modifier = Modifier
-                    .testTag("settings_overlay_dialog")
-                    .width(780.dp)
-                    .height(460.dp)
-                    .clip(panelShape)
-                    .background(LumiaOverlayBg)
-                    .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)), panelShape)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = {} // consume click
-                    )
+                    .width(260.dp)
+                    .fillMaxHeight()
+                    .background(Color.Black.copy(alpha = 0.25f))
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Left Column: Categories
-                Column(
-                    modifier = Modifier
-                        .width(240.dp)
-                        .fillMaxHeight()
-                        .background(Color.Black.copy(alpha = 0.25f))
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.settings_title),
-                        color = LumiaTextPrimary,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                Text(
+                    text = stringResource(R.string.settings_title),
+                    color = LumiaTextPrimary,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                )
+
+                HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 1.dp)
+                Spacer(modifier = Modifier.height(4.dp))
+
+                CategoryTabItem(
+                    title = stringResource(R.string.category_general),
+                    icon = Icons.Default.Tune,
+                    isSelected = selectedCategory == SettingsCategory.GENERAL,
+                    focusRequester = firstCategoryFocusRequester,
+                    onFocus = { selectedCategory = SettingsCategory.GENERAL },
+                    onClick = { selectedCategory = SettingsCategory.GENERAL }
+                )
+
+                CategoryTabItem(
+                    title = stringResource(R.string.category_appearance),
+                    icon = Icons.Default.ColorLens,
+                    isSelected = selectedCategory == SettingsCategory.APPEARANCE,
+                    onFocus = { selectedCategory = SettingsCategory.APPEARANCE },
+                    onClick = { selectedCategory = SettingsCategory.APPEARANCE }
+                )
+
+                CategoryTabItem(
+                    title = stringResource(R.string.category_apps),
+                    icon = Icons.Default.Apps,
+                    isSelected = selectedCategory == SettingsCategory.APPS,
+                    onFocus = { selectedCategory = SettingsCategory.APPS },
+                    onClick = { selectedCategory = SettingsCategory.APPS }
+                )
+
+                CategoryTabItem(
+                    title = stringResource(R.string.category_system),
+                    icon = Icons.Default.PhoneAndroid,
+                    isSelected = selectedCategory == SettingsCategory.SYSTEM,
+                    onFocus = { selectedCategory = SettingsCategory.SYSTEM },
+                    onClick = { selectedCategory = SettingsCategory.SYSTEM }
+                )
+
+                CategoryTabItem(
+                    title = stringResource(R.string.category_about),
+                    icon = Icons.Default.Info,
+                    isSelected = selectedCategory == SettingsCategory.ABOUT,
+                    onFocus = { selectedCategory = SettingsCategory.ABOUT },
+                    onClick = { selectedCategory = SettingsCategory.ABOUT }
+                )
+            }
+
+            // Right Column: Content for selected category
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .padding(24.dp)
+            ) {
+                when (selectedCategory) {
+                    SettingsCategory.GENERAL -> GeneralSettingsContent(
+                        settings = settings,
+                        onTimeFormatChange = onTimeFormatChange,
+                        onShowDateChange = onShowDateChange,
+                        onHomeFocusChange = onHomeFocusChange
                     )
-
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 1.dp)
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    CategoryTabItem(
-                        title = stringResource(R.string.category_general),
-                        icon = Icons.Default.Tune,
-                        isSelected = selectedCategory == SettingsCategory.GENERAL,
-                        onClick = { selectedCategory = SettingsCategory.GENERAL }
+                    SettingsCategory.APPEARANCE -> AppearanceSettingsContent(
+                        settings = settings,
+                        onCardColorChange = onCardColorChange,
+                        onChooseWallpaperClick = onChooseWallpaperClick,
+                        onResetWallpaperClick = onResetWallpaperClick
                     )
-
-                    CategoryTabItem(
-                        title = stringResource(R.string.category_appearance),
-                        icon = Icons.Default.ColorLens,
-                        isSelected = selectedCategory == SettingsCategory.APPEARANCE,
-                        onClick = { selectedCategory = SettingsCategory.APPEARANCE }
+                    SettingsCategory.APPS -> AppsSettingsContent(
+                        hiddenApps = hiddenApps,
+                        onUnhideApp = onUnhideApp,
+                        onRequestResetFavorites = onRequestResetFavorites
                     )
-
-                    CategoryTabItem(
-                        title = stringResource(R.string.category_apps),
-                        icon = Icons.Default.Apps,
-                        isSelected = selectedCategory == SettingsCategory.APPS,
-                        onClick = { selectedCategory = SettingsCategory.APPS }
+                    SettingsCategory.SYSTEM -> SystemSettingsContent(
+                        onSystemAction = onSystemAction
                     )
-
-                    CategoryTabItem(
-                        title = stringResource(R.string.category_system),
-                        icon = Icons.Default.PhoneAndroid,
-                        isSelected = selectedCategory == SettingsCategory.SYSTEM,
-                        onClick = { selectedCategory = SettingsCategory.SYSTEM }
-                    )
-
-                    CategoryTabItem(
-                        title = stringResource(R.string.category_about),
-                        icon = Icons.Default.Info,
-                        isSelected = selectedCategory == SettingsCategory.ABOUT,
-                        onClick = { selectedCategory = SettingsCategory.ABOUT }
-                    )
-                }
-
-                // Right Column: Content for selected category
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .padding(24.dp)
-                ) {
-                    when (selectedCategory) {
-                        SettingsCategory.GENERAL -> GeneralSettingsContent(
-                            settings = settings,
-                            onTimeFormatChange = onTimeFormatChange,
-                            onShowDateChange = onShowDateChange,
-                            onHomeFocusChange = onHomeFocusChange
-                        )
-                        SettingsCategory.APPEARANCE -> AppearanceSettingsContent(
-                            settings = settings,
-                            onCardColorChange = onCardColorChange,
-                            onChooseWallpaperClick = onChooseWallpaperClick,
-                            onResetWallpaperClick = onResetWallpaperClick
-                        )
-                        SettingsCategory.APPS -> AppsSettingsContent(
-                            hiddenApps = hiddenApps,
-                            onUnhideApp = onUnhideApp,
-                            onRequestResetFavorites = onRequestResetFavorites
-                        )
-                        SettingsCategory.SYSTEM -> SystemSettingsContent(
-                            onSystemAction = onSystemAction
-                        )
-                        SettingsCategory.ABOUT -> AboutSettingsContent()
-                    }
+                    SettingsCategory.ABOUT -> AboutSettingsContent()
                 }
             }
         }
@@ -257,17 +262,35 @@ fun SettingsOverlay(
                 )
             },
             confirmButton = {
+                val confirmInteraction = remember { MutableInteractionSource() }
+                val isFocused by confirmInteraction.collectIsFocusedAsState()
                 TextButton(
                     onClick = onConfirmResetFavorites,
-                    colors = ButtonDefaults.textButtonColors(contentColor = LumiaDestructive)
+                    interactionSource = confirmInteraction,
+                    modifier = Modifier.tvClickable(
+                        interactionSource = confirmInteraction,
+                        onClick = onConfirmResetFavorites
+                    ),
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = if (isFocused) Color.White else LumiaDestructive
+                    )
                 ) {
                     Text(stringResource(R.string.action_reset), fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
+                val cancelInteraction = remember { MutableInteractionSource() }
+                val isFocused by cancelInteraction.collectIsFocusedAsState()
                 TextButton(
                     onClick = onDismissResetFavorites,
-                    colors = ButtonDefaults.textButtonColors(contentColor = LumiaTextPrimary)
+                    interactionSource = cancelInteraction,
+                    modifier = Modifier.tvClickable(
+                        interactionSource = cancelInteraction,
+                        onClick = onDismissResetFavorites
+                    ),
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = if (isFocused) Color.White else LumiaTextPrimary
+                    )
                 ) {
                     Text(stringResource(R.string.action_cancel))
                 }
@@ -283,6 +306,8 @@ private fun CategoryTabItem(
     title: String,
     icon: ImageVector,
     isSelected: Boolean,
+    focusRequester: FocusRequester? = null,
+    onFocus: () -> Unit,
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -292,10 +317,11 @@ private fun CategoryTabItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .clip(shape)
             .background(
                 when {
-                    isFocused -> Color.White.copy(alpha = 0.20f)
+                    isFocused -> Color.White.copy(alpha = 0.22f)
                     isSelected -> Color.White.copy(alpha = 0.10f)
                     else -> Color.Transparent
                 }
@@ -304,13 +330,16 @@ private fun CategoryTabItem(
                 if (isFocused) Modifier.border(BorderStroke(2.dp, LumiaFocusBorder), shape)
                 else Modifier
             )
-            .focusable(interactionSource = interactionSource)
-            .clickable(
+            .onFocusChanged { focusState ->
+                if (focusState.isFocused) {
+                    onFocus()
+                }
+            }
+            .tvClickable(
                 interactionSource = interactionSource,
-                indication = null,
                 onClick = onClick
             )
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .padding(horizontal = 14.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -552,15 +581,13 @@ private fun HiddenAppItemRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(if (isFocused) Color.White.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f))
+            .background(if (isFocused) Color.White.copy(alpha = 0.20f) else Color.White.copy(alpha = 0.06f))
             .then(
                 if (isFocused) Modifier.border(BorderStroke(2.dp, LumiaFocusBorder), shape)
                 else Modifier
             )
-            .focusable(interactionSource = interactionSource)
-            .clickable(
+            .tvClickable(
                 interactionSource = interactionSource,
-                indication = null,
                 onClick = onUnhide
             )
             .padding(horizontal = 14.dp, vertical = 10.dp),
@@ -584,7 +611,8 @@ private fun HiddenAppItemRow(
             Text(
                 text = stringResource(R.string.unhide_app),
                 color = LumiaAccent,
-                fontSize = 13.sp
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium
             )
         }
     }
@@ -594,7 +622,6 @@ private fun HiddenAppItemRow(
 private fun SystemSettingsContent(
     onSystemAction: (String) -> Unit
 ) {
-    val context = LocalContext.current
     val scrollState = rememberScrollState()
 
     val systemEntries = listOf(
@@ -681,18 +708,16 @@ private fun SettingToggleRow(
         modifier = modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(if (isFocused) Color.White.copy(alpha = 0.15f) else Color.Transparent)
+            .background(if (isFocused) Color.White.copy(alpha = 0.20f) else Color.Transparent)
             .then(
                 if (isFocused) Modifier.border(BorderStroke(2.dp, LumiaFocusBorder), shape)
                 else Modifier
             )
-            .focusable(interactionSource = interactionSource)
-            .clickable(
+            .tvClickable(
                 interactionSource = interactionSource,
-                indication = null,
                 onClick = { onCheckedChange(!checked) }
             )
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -727,7 +752,7 @@ private fun SettingRadioOption(
             .clip(shape)
             .background(
                 when {
-                    isFocused -> Color.White.copy(alpha = 0.20f)
+                    isFocused -> Color.White.copy(alpha = 0.22f)
                     selected -> Color.White.copy(alpha = 0.12f)
                     else -> Color.White.copy(alpha = 0.04f)
                 }
@@ -737,13 +762,11 @@ private fun SettingRadioOption(
                 else if (selected) Modifier.border(BorderStroke(1.dp, LumiaAccent.copy(alpha = 0.6f)), shape)
                 else Modifier
             )
-            .focusable(interactionSource = interactionSource)
-            .clickable(
+            .tvClickable(
                 interactionSource = interactionSource,
-                indication = null,
                 onClick = onClick
             )
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = 12.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -775,17 +798,15 @@ private fun SettingActionButton(
         modifier = modifier
             .clip(shape)
             .background(
-                if (isFocused) Color.White.copy(alpha = 0.20f)
-                else Color.White.copy(alpha = 0.05f)
+                if (isFocused) Color.White.copy(alpha = 0.22f)
+                else Color.White.copy(alpha = 0.06f)
             )
             .then(
                 if (isFocused) Modifier.border(BorderStroke(2.dp, LumiaFocusBorder), shape)
                 else Modifier
             )
-            .focusable(interactionSource = interactionSource)
-            .clickable(
+            .tvClickable(
                 interactionSource = interactionSource,
-                indication = null,
                 onClick = onClick
             )
             .padding(horizontal = 14.dp, vertical = 12.dp),

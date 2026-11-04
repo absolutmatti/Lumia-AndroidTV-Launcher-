@@ -44,6 +44,7 @@ class AppRepository(
                     // Automatically clean up deleted packages from DB
                     scope.launchCleanup(pkgName)
                 }
+                AppIconCache.clear()
                 trySend(Unit)
             }
         }

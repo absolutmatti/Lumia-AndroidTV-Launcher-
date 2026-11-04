@@ -1,16 +1,12 @@
 package com.example.ui.components
 
-import android.content.ComponentName
-import android.graphics.drawable.Drawable
 import android.view.KeyEvent
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -27,7 +23,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,9 +31,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -52,6 +47,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.data.datastore.CardColorPreference
 import com.example.data.model.AppItem
+import com.example.data.repository.AppIconCache
 import com.example.ui.theme.LumiaCardDefault
 import com.example.ui.theme.LumiaFocusBorder
 import com.example.ui.theme.LumiaTextPrimary
@@ -59,7 +55,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AppCard(
     app: AppItem,
@@ -69,9 +64,11 @@ fun AppCard(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val pm = context.packageManager
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
 
+    // Smooth, lightweight scale transition
     val scale by animateFloatAsState(
         targetValue = if (isFocused) 1.08f else 1.0f,
         animationSpec = tween(durationMillis = 150),
@@ -83,30 +80,18 @@ fun AppCard(
     var longPressJob by remember { mutableStateOf<Job?>(null) }
     var longPressTriggered by remember { mutableStateOf(false) }
 
-    // Resolve banner and icon drawables
+    // Fast in-memory cached drawables without IPC overhead
     val bannerDrawable = remember(app.packageName, app.hasBanner) {
         if (app.hasBanner) {
-            try {
-                val component = ComponentName(app.packageName, app.activityName)
-                context.packageManager.getActivityBanner(component)
-                    ?: context.packageManager.getApplicationBanner(app.packageName)
-            } catch (_: Exception) {
-                null
-            }
+            AppIconCache.getBanner(app.packageName, app.activityName, pm)
         } else null
     }
 
     val iconDrawable = remember(app.packageName, app.lastUpdateTime) {
-        try {
-            val component = ComponentName(app.packageName, app.activityName)
-            context.packageManager.getActivityIcon(component)
-                ?: context.packageManager.getApplicationIcon(app.packageName)
-        } catch (_: Exception) {
-            null
-        }
+        AppIconCache.getIcon(app.packageName, app.activityName, pm)
     }
 
-    val cardBgColor = remember(app, cardColorPreference) {
+    val cardBgColor = remember(app.dynamicColors, cardColorPreference) {
         if (cardColorPreference == CardColorPreference.DYNAMIC) {
             Color(app.dynamicColors.backgroundColor)
         } else {
@@ -114,7 +99,7 @@ fun AppCard(
         }
     }
 
-    val textColor = remember(app, cardColorPreference) {
+    val textColor = remember(app.dynamicColors, cardColorPreference) {
         if (cardColorPreference == CardColorPreference.DYNAMIC) {
             Color(app.dynamicColors.textColor)
         } else {
@@ -125,20 +110,20 @@ fun AppCard(
     Box(
         modifier = modifier
             .testTag("app_card_${app.packageName}")
-            .scale(scale)
             .zIndex(if (isFocused) 10f else 1f)
-            .shadow(
-                elevation = if (isFocused) 16.dp else 4.dp,
-                shape = shape,
-                clip = false
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .then(
+                if (isFocused) {
+                    Modifier
+                        .shadow(elevation = 12.dp, shape = shape, clip = false)
+                        .border(BorderStroke(3.dp, LumiaFocusBorder), shape)
+                } else Modifier
             )
             .clip(shape)
             .background(cardBgColor)
-            .then(
-                if (isFocused) {
-                    Modifier.border(BorderStroke(3.dp, LumiaFocusBorder), shape)
-                } else Modifier
-            )
             .focusable(interactionSource = interactionSource)
             .onKeyEvent { keyEvent ->
                 val native = keyEvent.nativeKeyEvent
@@ -146,8 +131,10 @@ fun AppCard(
                         native.keyCode == KeyEvent.KEYCODE_ENTER
                 val isMenu = native.keyCode == KeyEvent.KEYCODE_MENU
 
-                if (isMenu && native.action == KeyEvent.ACTION_UP) {
-                    onLongClick()
+                if (isMenu) {
+                    if (native.action == KeyEvent.ACTION_UP) {
+                        onLongClick()
+                    }
                     return@onKeyEvent true
                 }
 
@@ -162,6 +149,8 @@ fun AppCard(
                                 onLongClick()
                             }
                         }
+                        // Always consume ACTION_DOWN so system doesn't synthesize a click
+                        return@onKeyEvent true
                     } else if (native.action == KeyEvent.ACTION_UP) {
                         longPressJob?.cancel()
                         if (!longPressTriggered) {
@@ -173,32 +162,29 @@ fun AppCard(
                 }
                 false
             }
-            .combinedClickable(
+            .clickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClick = onClick,
-                onLongClick = onLongClick
+                onClick = onClick
             )
             .aspectRatio(16f / 9f)
     ) {
         if (bannerDrawable != null) {
-            // Full 16:9 banner
             AsyncImage(
                 model = ImageRequest.Builder(context)
                     .data(bannerDrawable)
                     .size(507, 285)
-                    .crossfade(true)
+                    .crossfade(false)
                     .build(),
                 contentDescription = app.label,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
         } else {
-            // Fallback 16:9 card: Icon centered at upper part, label below
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
@@ -206,8 +192,8 @@ fun AppCard(
                     AsyncImage(
                         model = ImageRequest.Builder(context)
                             .data(iconDrawable)
-                            .size(128, 128)
-                            .crossfade(true)
+                            .size(96, 96)
+                            .crossfade(false)
                             .build(),
                         contentDescription = null,
                         modifier = Modifier.size(38.dp)
@@ -216,7 +202,7 @@ fun AppCard(
                     Spacer(modifier = Modifier.size(38.dp))
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
                     text = app.label,

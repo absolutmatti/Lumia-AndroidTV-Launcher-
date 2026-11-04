@@ -181,11 +181,8 @@ private fun StatusBarIconButton(
                     Modifier.border(BorderStroke(2.dp, LumiaFocusBorder), shape)
                 } else Modifier
             )
-            .focusable(interactionSource = interactionSource)
-            .clickable(
+            .tvClickable(
                 interactionSource = interactionSource,
-                indication = null,
-                onClickLabel = contentDescription,
                 onClick = onClick
             ),
         contentAlignment = Alignment.Center

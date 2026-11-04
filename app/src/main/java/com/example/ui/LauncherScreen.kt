@@ -1,12 +1,10 @@
 package com.example.ui
 
-import android.content.Context
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,7 +21,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -35,7 +32,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -44,7 +40,7 @@ import coil.request.ImageRequest
 import com.example.R
 import com.example.data.datastore.BackgroundPreference
 import com.example.ui.components.AppCard
-import com.example.ui.components.ContextMenuDialog
+import com.example.ui.components.ContextMenuOverlay
 import com.example.ui.components.CustomWallpaperPicker
 import com.example.ui.components.FavoritesPanel
 import com.example.ui.components.SettingsOverlay
@@ -93,7 +89,7 @@ fun LauncherScreen(
     }
 
     // Global Back Handler:
-    // If dialogs open, dismiss them; if in grid, scroll to top; if in favorites, consume.
+    // If dialogs/overlays open, dismiss them; if in grid, scroll to top; if in favorites, consume.
     BackHandler {
         if (!viewModel.handleBack()) {
             if (gridState.firstVisibleItemIndex > 0 || gridState.firstVisibleItemScrollOffset > 0) {
@@ -104,57 +100,48 @@ fun LauncherScreen(
         }
     }
 
-    // Scrim calculation based on scroll offset:
-    // 0 = 25% (0.25f), ramps to 55% (0.55f) after ~270dp of scrolling
-    val scrimAlpha by remember {
-        derivedStateOf {
-            val firstIndex = gridState.firstVisibleItemIndex
-            val offset = gridState.firstVisibleItemScrollOffset
-            if (firstIndex > 0) {
-                0.55f
-            } else {
-                val progress = (offset / 600f).coerceIn(0f, 1f)
-                0.25f + (0.30f * progress)
-            }
-        }
-    }
-
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .testTag("launcher_screen")
     ) {
         val screenHeight = maxHeight
-        val screenWidth = maxWidth
 
         // 1. Wallpaper background layer
         Box(modifier = Modifier.fillMaxSize()) {
-            if (uiState.settings.backgroundMode == BackgroundPreference.CUSTOM &&
+            val wallpaperModel = if (uiState.settings.backgroundMode == BackgroundPreference.CUSTOM &&
                 uiState.customWallpaperFile != null
             ) {
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(uiState.customWallpaperFile)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
+                uiState.customWallpaperFile
             } else {
-                Image(
-                    painter = painterResource(id = R.drawable.default_wallpaper),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
+                R.drawable.default_wallpaper
             }
 
-            // Scrim overlay darkening dynamically with scroll position
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(wallpaperModel)
+                    .crossfade(false)
+                    .build(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // Dynamic Scrim overlay:
+            // Calculate alpha inside graphicsLayer to completely prevent recomposition during scroll!
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer { alpha = scrimAlpha }
+                    .graphicsLayer {
+                        val firstIndex = gridState.firstVisibleItemIndex
+                        val offset = gridState.firstVisibleItemScrollOffset
+                        alpha = if (firstIndex > 0) {
+                            0.55f
+                        } else {
+                            val progress = (offset / 500f).coerceIn(0f, 1f)
+                            0.25f + (0.30f * progress)
+                        }
+                    }
                     .background(Color.Black)
             )
 
@@ -177,7 +164,6 @@ fun LauncherScreen(
         )
 
         // 3. Scrollable Grid: clipped below the status bar (at 64dp from top)
-        // With smooth top padding so apps scroll underneath status bar
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -199,8 +185,6 @@ fun LauncherScreen(
                     .testTag("app_grid")
             ) {
                 // Item 0: Home-Header (Span 6 columns)
-                // Height is viewport - 40dp - 64dp top bar offset
-                // Contains the FavoritesPanel aligned at the bottom
                 item(
                     span = { GridItemSpan(6) },
                     contentType = "home_header",
@@ -240,9 +224,9 @@ fun LauncherScreen(
             }
         }
 
-        // 4. Context Menu Overlay Dialog
+        // 4. Context Menu Overlay (In-Screen, D-pad accessible)
         uiState.contextMenuTarget?.let { targetApp ->
-            ContextMenuDialog(
+            ContextMenuOverlay(
                 app = targetApp,
                 isFavorite = uiState.isContextMenuTargetFavorite,
                 favoritesCount = uiState.favoriteApps.size,
@@ -255,7 +239,7 @@ fun LauncherScreen(
             )
         }
 
-        // 5. Settings Overlay Dialog
+        // 5. Settings Overlay (In-Screen, D-pad accessible)
         if (uiState.isSettingsOpen) {
             SettingsOverlay(
                 settings = uiState.settings,
@@ -269,7 +253,6 @@ fun LauncherScreen(
                     try {
                         docPickerLauncher.launch(arrayOf("image/*"))
                     } catch (_: Exception) {
-                        // Fallback to in-app MediaStore picker on devices without document picker
                         viewModel.openCustomWallpaperPicker()
                     }
                 },
@@ -283,7 +266,7 @@ fun LauncherScreen(
             )
         }
 
-        // 6. In-App Custom Wallpaper MediaStore Picker Dialog (fallback for TV)
+        // 6. In-App Custom Wallpaper MediaStore Picker
         if (uiState.isCustomPickerOpen) {
             CustomWallpaperPicker(
                 images = uiState.deviceImages,

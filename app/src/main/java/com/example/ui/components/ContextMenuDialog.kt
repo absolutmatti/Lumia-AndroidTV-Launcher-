@@ -1,13 +1,14 @@
 package com.example.ui.components
 
+import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -38,7 +39,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -47,8 +50,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.example.R
 import com.example.data.model.AppItem
 import com.example.data.repository.AppIconCache
@@ -76,12 +77,11 @@ fun ContextMenuOverlay(
     val pm = context.packageManager
     val firstItemFocusRequester = remember { FocusRequester() }
 
-    val iconDrawable = remember(app.packageName, app.lastUpdateTime) {
-        AppIconCache.getIcon(app.packageName, app.activityName, pm)
+    val iconBitmap = remember(app.packageName, app.lastUpdateTime) {
+        AppIconCache.getIconBitmap(app.packageName, app.activityName, pm)
     }
 
     LaunchedEffect(app.packageName) {
-        // Focus first item reliably when overlay appears
         firstItemFocusRequester.requestFocus()
     }
 
@@ -92,6 +92,16 @@ fun ContextMenuOverlay(
             .fillMaxSize()
             .zIndex(100f)
             .background(LumiaOverlayScrim)
+            .onKeyEvent { keyEvent ->
+                val native = keyEvent.nativeKeyEvent
+                if (native.keyCode == KeyEvent.KEYCODE_BACK) {
+                    if (native.action == KeyEvent.ACTION_UP) {
+                        onDismiss()
+                    }
+                    return@onKeyEvent true
+                }
+                false
+            }
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -120,13 +130,9 @@ fun ContextMenuOverlay(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                if (iconDrawable != null) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(context)
-                            .data(iconDrawable)
-                            .size(96, 96)
-                            .crossfade(false)
-                            .build(),
+                if (iconBitmap != null) {
+                    Image(
+                        bitmap = iconBitmap.asImageBitmap(),
                         contentDescription = null,
                         modifier = Modifier.size(40.dp)
                     )
@@ -185,7 +191,7 @@ fun ContextMenuOverlay(
                 )
             }
 
-            // 4. Hide (destructive action, visually accented)
+            // 4. Hide (destructive action)
             ContextMenuItem(
                 testTag = "menu_item_hide",
                 title = stringResource(R.string.menu_hide),

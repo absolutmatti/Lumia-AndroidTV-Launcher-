@@ -1,7 +1,9 @@
 package com.example.ui.components
 
 import android.provider.Settings
+import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -124,6 +126,16 @@ fun SettingsOverlay(
             .fillMaxSize()
             .zIndex(100f)
             .background(LumiaOverlayScrim)
+            .onKeyEvent { keyEvent ->
+                val native = keyEvent.nativeKeyEvent
+                if (native.keyCode == KeyEvent.KEYCODE_BACK) {
+                    if (native.action == KeyEvent.ACTION_UP) {
+                        onDismiss()
+                    }
+                    return@onKeyEvent true
+                }
+                false
+            }
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,

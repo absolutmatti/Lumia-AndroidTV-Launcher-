@@ -4,6 +4,7 @@ import android.view.KeyEvent
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -33,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.ContentScale
@@ -43,8 +45,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.example.data.datastore.CardColorPreference
 import com.example.data.model.AppItem
 import com.example.data.repository.AppIconCache
@@ -68,7 +68,6 @@ fun AppCard(
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
 
-    // Smooth, lightweight scale transition
     val scale by animateFloatAsState(
         targetValue = if (isFocused) 1.08f else 1.0f,
         animationSpec = tween(durationMillis = 150),
@@ -80,15 +79,15 @@ fun AppCard(
     var longPressJob by remember { mutableStateOf<Job?>(null) }
     var longPressTriggered by remember { mutableStateOf(false) }
 
-    // Fast in-memory cached drawables without IPC overhead
-    val bannerDrawable = remember(app.packageName, app.hasBanner) {
+    // Fast in-memory cached bitmaps
+    val bannerBitmap = remember(app.packageName, app.hasBanner) {
         if (app.hasBanner) {
-            AppIconCache.getBanner(app.packageName, app.activityName, pm)
+            AppIconCache.getBannerBitmap(app.packageName, app.activityName, pm)
         } else null
     }
 
-    val iconDrawable = remember(app.packageName, app.lastUpdateTime) {
-        AppIconCache.getIcon(app.packageName, app.activityName, pm)
+    val iconBitmap = remember(app.packageName, app.lastUpdateTime) {
+        AppIconCache.getIconBitmap(app.packageName, app.activityName, pm)
     }
 
     val cardBgColor = remember(app.dynamicColors, cardColorPreference) {
@@ -118,7 +117,7 @@ fun AppCard(
             .then(
                 if (isFocused) {
                     Modifier
-                        .shadow(elevation = 12.dp, shape = shape, clip = false)
+                        .shadow(elevation = 10.dp, shape = shape, clip = false)
                         .border(BorderStroke(3.dp, LumiaFocusBorder), shape)
                 } else Modifier
             )
@@ -149,7 +148,6 @@ fun AppCard(
                                 onLongClick()
                             }
                         }
-                        // Always consume ACTION_DOWN so system doesn't synthesize a click
                         return@onKeyEvent true
                     } else if (native.action == KeyEvent.ACTION_UP) {
                         longPressJob?.cancel()
@@ -169,13 +167,9 @@ fun AppCard(
             )
             .aspectRatio(16f / 9f)
     ) {
-        if (bannerDrawable != null) {
-            AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(bannerDrawable)
-                    .size(507, 285)
-                    .crossfade(false)
-                    .build(),
+        if (bannerBitmap != null) {
+            Image(
+                bitmap = bannerBitmap.asImageBitmap(),
                 contentDescription = app.label,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
@@ -188,13 +182,9 @@ fun AppCard(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                if (iconDrawable != null) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(context)
-                            .data(iconDrawable)
-                            .size(96, 96)
-                            .crossfade(false)
-                            .build(),
+                if (iconBitmap != null) {
+                    Image(
+                        bitmap = iconBitmap.asImageBitmap(),
                         contentDescription = null,
                         modifier = Modifier.size(38.dp)
                     )

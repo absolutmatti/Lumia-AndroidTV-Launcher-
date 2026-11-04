@@ -63,6 +63,9 @@ android {
     compose = true
     buildConfig = true
   }
+  composeCompiler {
+    includeSourceInformation = false
+  }
   testOptions { unitTests { isIncludeAndroidResources = true } }
   dependenciesInfo {
     includeInApk = false
